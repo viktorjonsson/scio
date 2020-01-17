@@ -21,9 +21,6 @@ import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.joda.time.Instant;
@@ -52,20 +49,45 @@ public final class SMBFilenamePolicy implements Serializable {
   private final ResourceId directory;
   private final String filenameSuffix;
 
+  private SinkFileAssignment sinkAssignment;
+  private SourceFileAssignment sourceAssignment;
+
   public SMBFilenamePolicy(ResourceId directory, String filenameSuffix) {
     Preconditions.checkArgument(directory.isDirectory(), "ResourceId must be a directory");
     this.directory = directory;
     this.filenameSuffix = filenameSuffix;
   }
 
-  public FileAssignment forDestination() {
-    return new FileAssignment(directory, filenameSuffix, false);
+  public SMBFilenamePolicy withSinkAssignment(SinkFileAssignment fileAssignment) {
+    this.sinkAssignment = fileAssignment;
+    return this;
   }
 
-  FileAssignment forTempFiles(ResourceId tempDirectory) {
+  public SMBFilenamePolicy withSourceAssignment(SourceFileAssignment fileAssignment) {
+    this.sourceAssignment = fileAssignment;
+    return this;
+  }
+
+  public SinkFileAssignment forSink() {
+    if (this.sinkAssignment == null) {
+      this.sinkAssignment = new SinkFileAssignment(directory, filenameSuffix, false);
+    }
+
+    return this.sinkAssignment;
+  }
+
+  public SourceFileAssignment forSource() {
+    if (this.sourceAssignment == null) {
+      this.sourceAssignment = SourceFileAssignment.ofDefault(directory, filenameSuffix, false);
+    }
+
+    return this.sourceAssignment;
+  }
+
+  SinkFileAssignment forTempFiles(ResourceId tempDirectory) {
     final String tempDirName =
         String.format(TEMP_DIRECTORY_PREFIX + "-%s-%08d", timestamp, getTempId());
-    return new FileAssignment(
+    return new SinkFileAssignment(
         tempDirectory
             .getCurrentDirectory()
             .resolve(tempDirName, StandardResolveOptions.RESOLVE_DIRECTORY),
@@ -76,73 +98,5 @@ public final class SMBFilenamePolicy implements Serializable {
   @VisibleForTesting
   Long getTempId() {
     return tempId;
-  }
-
-  /**
-   * A file name assigner based on a specific output directory and file suffix. Optionally prepends
-   * a timestamp to file names to ensure idempotence.
-   */
-  public static class FileAssignment implements Serializable, HasDisplayData {
-
-    private static final String NULL_KEYS_BUCKET_TEMPLATE = "null-keys";
-    private static final String NUMERIC_BUCKET_TEMPLATE = "%05d-of-%05d";
-    private static final String BUCKET_ONLY_TEMPLATE = "bucket-%s%s";
-    private static final String BUCKET_SHARD_TEMPLATE = "bucket-%s-shard-%05d-of-%05d%s";
-    private static final String METADATA_FILENAME = "metadata.json";
-    private static final DateTimeFormatter TEMPFILE_TIMESTAMP =
-        DateTimeFormat.forPattern("yyyy-MM-dd_HH-mm-ss-");
-
-    private final ResourceId filenamePrefix;
-    private final String filenameSuffix;
-    private final boolean doTimestampFiles;
-
-    FileAssignment(ResourceId filenamePrefix, String filenameSuffix, boolean doTimestampFiles) {
-      this.filenamePrefix = filenamePrefix;
-      this.filenameSuffix = filenameSuffix;
-      this.doTimestampFiles = doTimestampFiles;
-    }
-
-    public ResourceId forBucket(BucketShardId id, BucketMetadata<?, ?> metadata) {
-      Preconditions.checkArgument(
-          id.getBucketId() < metadata.getNumBuckets(),
-          "Can't assign a filename for bucketShardId %s: max number of buckets is %s",
-          id,
-          metadata.getNumBuckets());
-
-      Preconditions.checkArgument(
-          id.getShardId() < metadata.getNumShards(),
-          "Can't assign a filename for bucketShardId %s: max number of shards is %s",
-          id,
-          metadata.getNumBuckets());
-
-      final String bucketName =
-          id.isNullKeyBucket()
-              ? NULL_KEYS_BUCKET_TEMPLATE
-              : String.format(NUMERIC_BUCKET_TEMPLATE, id.getBucketId(), metadata.getNumBuckets());
-
-      final String timestamp = doTimestampFiles ? Instant.now().toString(TEMPFILE_TIMESTAMP) : "";
-      String filename = metadata.getNumShards() == 1 ?
-          String.format(BUCKET_ONLY_TEMPLATE, bucketName, filenameSuffix) :
-          String.format(
-              BUCKET_SHARD_TEMPLATE,
-              bucketName,
-              id.getShardId(),
-              metadata.getNumShards(),
-              filenameSuffix);
-
-      return filenamePrefix.resolve(timestamp + filename, StandardResolveOptions.RESOLVE_FILE);
-    }
-
-    public ResourceId forMetadata() {
-      String timestamp = doTimestampFiles ? Instant.now().toString(TEMPFILE_TIMESTAMP) : "";
-      return filenamePrefix.resolve(
-          timestamp + METADATA_FILENAME, StandardResolveOptions.RESOLVE_FILE);
-    }
-
-    @Override
-    public void populateDisplayData(Builder builder) {
-      builder.add(DisplayData.item("directory", filenamePrefix.toString()));
-      builder.add(DisplayData.item("filenameSuffix", filenameSuffix));
-    }
   }
 }

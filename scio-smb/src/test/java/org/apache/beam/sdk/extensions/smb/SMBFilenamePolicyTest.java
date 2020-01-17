@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.smb;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 
 import org.apache.beam.sdk.extensions.smb.BucketMetadata.HashType;
-import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -52,7 +51,7 @@ public class SMBFilenamePolicyTest {
   @Test
   public void testDestinationFileAssignment() throws Exception {
     final SMBFilenamePolicy policy = testFilenamePolicy(destination);
-    final FileAssignment fileAssignment = policy.forDestination();
+    final SinkFileAssignment fileAssignment = policy.forSink();
 
     Assert.assertEquals(
         fileAssignment.forMetadata(), resolveFile(destination, "metadata", ".json"));
@@ -156,7 +155,7 @@ public class SMBFilenamePolicyTest {
   public void testDisplayData() {
     final SMBFilenamePolicy policy = testFilenamePolicy(destination);
 
-    final DisplayData displayData = DisplayData.from(policy.forDestination());
+    final DisplayData displayData = DisplayData.from(policy.forSink());
     MatcherAssert.assertThat(
         displayData, hasDisplayItem("directory", TestUtils.fromFolder(destination).toString()));
     MatcherAssert.assertThat(displayData, hasDisplayItem("filenameSuffix", SUFFIX));

@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.extensions.smb.FileOperations.Writer;
-import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -186,8 +185,8 @@ public class SortedBucketSourceTest {
     TestBucketMetadata lhsMetadata = TestBucketMetadata.of(lhsNumBuckets, lhsNumShards);
     TestBucketMetadata rhsMetadata = TestBucketMetadata.of(rhsNumBuckets, rhsNumShards);
 
-    write(lhsPolicy.forDestination(), lhsMetadata, lhsInput);
-    write(rhsPolicy.forDestination(), rhsMetadata, rhsInput);
+    write(lhsPolicy.forSink(), lhsMetadata, lhsInput);
+    write(rhsPolicy.forSink(), rhsMetadata, rhsInput);
 
     final TupleTag<String> lhsTag = new TupleTag<>("LHS");
     final TupleTag<String> rhsTag = new TupleTag<>("RHS");
@@ -233,7 +232,7 @@ public class SortedBucketSourceTest {
   }
 
   private static void write(
-      FileAssignment fileAssignment,
+      SinkFileAssignment fileAssignment,
       TestBucketMetadata metadata,
       Map<BucketShardId, List<String>> input)
       throws Exception {

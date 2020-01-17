@@ -33,7 +33,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.smb.BucketShardId.BucketShardIdCoder;
-import org.apache.beam.sdk.extensions.smb.SMBFilenamePolicy.FileAssignment;
 import org.apache.beam.sdk.extensions.smb.SortedBucketSink.WriteResult;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
 import org.apache.beam.sdk.extensions.sorter.ExternalSorter;
@@ -263,7 +262,7 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
           .apply(
               "FinalizeTempFiles",
               new FinalizeTempFiles<>(
-                  filenamePolicy.forDestination(), bucketMetadata, fileOperations));
+                  filenamePolicy.forSink(), bucketMetadata, fileOperations));
     }
   }
 
@@ -272,12 +271,12 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
       extends PTransform<
           PCollection<KV<BucketShardId, Iterable<KV<byte[], V>>>>, PCollectionTuple> {
 
-    private final FileAssignment fileAssignment;
+    private final SinkFileAssignment fileAssignment;
     private final BucketMetadata bucketMetadata;
     private final FileOperations<V> fileOperations;
 
     WriteTempFiles(
-        FileAssignment fileAssignment,
+        SinkFileAssignment fileAssignment,
         BucketMetadata bucketMetadata,
         FileOperations<V> fileOperations) {
       this.fileAssignment = fileAssignment;
@@ -358,12 +357,12 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
 
   /** Moves temporary files to final destinations. */
   private static class FinalizeTempFiles<V> extends PTransform<PCollectionTuple, WriteResult> {
-    private final FileAssignment fileAssignment;
+    private final SinkFileAssignment fileAssignment;
     private final BucketMetadata bucketMetadata;
     private final FileOperations<V> fileOperations;
 
     FinalizeTempFiles(
-        FileAssignment fileAssignment,
+        SinkFileAssignment fileAssignment,
         BucketMetadata bucketMetadata,
         FileOperations<V> fileOperations) {
       this.fileAssignment = fileAssignment;
@@ -423,12 +422,12 @@ public class SortedBucketSink<K, V> extends PTransform<PCollection<V>, WriteResu
     private static class RenameBuckets<V>
         extends DoFn<Iterable<KV<BucketShardId, ResourceId>>, KV<BucketShardId, ResourceId>> {
 
-      private final FileAssignment fileAssignment;
+      private final SinkFileAssignment fileAssignment;
       private final BucketMetadata bucketMetadata;
       private final FileOperations<V> fileOperations;
 
       RenameBuckets(
-          FileAssignment fileAssignment,
+          SinkFileAssignment fileAssignment,
           BucketMetadata bucketMetadata,
           FileOperations<V> fileOperations) {
         this.fileAssignment = fileAssignment;
