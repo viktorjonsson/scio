@@ -60,7 +60,7 @@ final class GenericRecordSCollectionOps(private val self: SCollection[GenericRec
 
   /**
    * Save this SCollection of type
-   * [[org.apache.avro.specific.SpecificRecord SpecificRecord]] as an Avro file.
+   * [[org.apache.avro.generic.GenericRecord GenericRecord]] as an Avro file.
    */
   def saveAsAvroFile(
     path: String,
